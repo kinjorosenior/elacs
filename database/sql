@@ -1,0 +1,79 @@
+CREATE TABLE elacs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    library_name VARCHAR(255) NOT NULL,
+    location VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE admins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    library_id INT,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin','librarian') NOT NULL,
+    status ENUM('active','inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (library_id) REFERENCES libraries(id) ON DELETE CASCADE
+);
+
+CREATE TABLE students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    library_id INT,
+    student_id VARCHAR(100) UNIQUE,
+    full_name VARCHAR(255) NOT NULL,
+    user_type ENUM('student','visitor') NOT NULL,
+    department VARCHAR(255),
+    year_of_study VARCHAR(50),
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    trust_score INT DEFAULT 100,
+    status ENUM('active','blocked') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (library_id) REFERENCES libraries(id) ON DELETE CASCADE
+);
+
+CREATE TABLE devices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    library_id INT,
+    student_id INT,
+    device_type ENUM('laptop','tablet') NOT NULL,
+    brand VARCHAR(100),
+    model VARCHAR(100),
+    serial_number VARCHAR(255) UNIQUE NOT NULL,
+    color VARCHAR(50),
+    marks VARCHAR(100),
+    status ENUM('registered','inside','flagged') DEFAULT 'registered',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (library_id) REFERENCES libraries(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+
+CREATE TABLE checkins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    library_id INT,
+    device_id INT,
+    student_id INT,
+    librarian_id INT,
+    checkin_time DATETIME,
+    checkout_time DATETIME,
+    status ENUM('inside','checked_out') DEFAULT 'inside',
+    FOREIGN KEY (library_id) REFERENCES libraries(id),
+    FOREIGN KEY (device_id) REFERENCES devices(id),
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (librarian_id) REFERENCES admins(id)
+);
+
+CREATE TABLE suspicious_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    library_id INT,
+    student_id INT NULL,
+    device_id INT NULL,
+    event_type VARCHAR(100),
+    risk_level ENUM('low','medium','high'),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (library_id) REFERENCES libraries(id),
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (device_id) REFERENCES devices(id)
+);
