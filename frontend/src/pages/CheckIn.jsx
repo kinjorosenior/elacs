@@ -48,10 +48,21 @@ export default function CheckIn() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ student_id: selectedStudent, device_serial: serial })
-    }).then(res => res.json()).then(data => {
+    })
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      return res.json();
+    })
+    .then(data => {
+      if (data.error) {
+        throw new Error(data.error);
+      }
       alert(data.message);
       if (selectedStudent) loadDevices(selectedStudent);
-    });
+    })
+    .catch(err => alert("Check-in failed: " + err.message));
   }
 
   return (

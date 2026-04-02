@@ -21,7 +21,7 @@ VALUES
 
 $stmt = $conn->prepare($query);
 
-$stmt->bindParam(":student_id",$data['student_id']);
+$stmt->bindParam(":id",$data['student_id']);
 $stmt->bindParam(":serial_number",$data['serial_number']);
 $stmt->bindParam(":model",$data['model']);
 $stmt->bindParam(":device_type",$data['device_type']);

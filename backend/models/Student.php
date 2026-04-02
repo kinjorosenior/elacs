@@ -79,13 +79,13 @@ class Student
     {
         $query = "UPDATE {$this->table}
                   SET trust_score = :score
-                  WHERE id = :id";
+                  WHERE id = :student_id";
 
         $stmt = $this->conn->prepare($query);
 
         return $stmt->execute([
             ':score' => $newScore,
-            ':id' => $id
+            ': student_id' => $id
         ]);
     }
 
@@ -95,12 +95,12 @@ class Student
     public function updateStatus($id, $status)
 {
     $stmt = $this->conn->prepare("
-        UPDATE students SET status = :status WHERE id = :id
+        UPDATE students SET status = :status WHERE id = :student_id
     ");
 
     return $stmt->execute([
         ':status' => $status,
-        ':id' => $id
+        ':student_id' => $id
     ]);
 }
     // ==============================

@@ -1,13 +1,8 @@
-# ELACS Task Complete ✓ [12/12]
+# TODO: Fix Unassigned Check-in Error
 
-**Dashboard tables**: Fixed collation - shows checkins data
-**Layout**: All pages sidebar/navbar sticky ✓
-**Reports**: Charts/tables/export PDF ✓ (studentReport works)
-**Notifications**: Cron overdue/after-hours ✓
-
-**Feedback fixes:**
-- CheckIn student search: Collation fixed, test with data
-- PDF: Endpoint returns data ✓
-- Laptops table: Search + checkin/checkout actions (next)
-
-**Status:** Ready! `npm run dev`
+## Steps:
+- [x] Diagnose issue (unassigned devices prompt for student ID, invalid input causes 400)
+- [x] Create TODO.md
+- [x] Plan and implement validation in CheckIn.jsx to prevent bad requests for unassigned devices
+- [x] Test check-in flow for unassigned devices
+- [x] Complete task

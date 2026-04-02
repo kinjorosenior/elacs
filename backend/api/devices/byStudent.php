@@ -8,7 +8,7 @@ require_once "../../config/database.php";
 $db = new Database();
 $conn = $db->connect();
 
-$student_id = $_GET['student_id'] ?? null;
+$student_id = $_GET['id'] ?? null;
 
 if (!$student_id) {
     echo json_encode([]);

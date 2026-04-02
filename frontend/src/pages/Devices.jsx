@@ -49,14 +49,24 @@ export default function Devices() {
   async function checkinDevice(serial, studentId = null) {
     const sid = studentId || prompt("Enter Student ID for check-in");
     if (!sid) return;
-    const res = await fetch("http://localhost/elacs/backend/api/checkin/create.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ student_id: sid, device_serial: serial })
-    });
-    const data = await res.json();
-    alert(data.message || "Check-in success");
-    fetchDevices();
+    try {
+      const res = await fetch("http://localhost/elacs/backend/api/checkin/create.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ student_id: sid, device_serial: serial })
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      const data = await res.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      alert(data.message || "Check-in success");
+      fetchDevices();
+    } catch (err) {
+      alert("Check-in failed: " + err.message);
+    }
   }
 
   function openEdit(deviceData) {

@@ -65,8 +65,8 @@ class CheckinController
         $this->checkin->create([
             'device_id' => $deviceData['id'],
             'student_id' => $deviceData['student_id'],
-            'library_id' => $deviceData['library_id'],
-            'librarian_id' => $data['librarian_id'],
+            'library_id' => $deviceData['id'],
+            'librarian_id' => $data['id'],
             'status' => 'inside'
         ]);
 

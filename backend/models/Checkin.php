@@ -21,20 +21,20 @@ class Checkin
 
         return $stmt->execute([
             ':student_id' => $data['student_id'],
-            ':device_serial' => $data['device_serial']
+            ':serial_number' => $data['device_serial']
         ]);
     }
 
     public function getActiveCheckin($serial)
     {
         $query = "SELECT * FROM {$this->table}
-                  WHERE device_serial = :serial
+                  WHERE device_serial = :serial_number
                   AND status = 'IN'
                   ORDER BY id DESC
                   LIMIT 1";
 
         $stmt = $this->conn->prepare($query);
-        $stmt->execute([':serial' => $serial]);
+        $stmt->execute([':serial_number' => $serial]);
 
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
@@ -44,11 +44,11 @@ class Checkin
         $query = "UPDATE {$this->table}
                   SET status = 'OUT',
                       checkout_time = NOW()
-                  WHERE id = :id";
+                  WHERE id = :student_id";
 
         $stmt = $this->conn->prepare($query);
 
-        return $stmt->execute([':id' => $id]);
+        return $stmt->execute([':student_id' => $id]);
     }
 
     public function getDevicesStillInside()
