@@ -10,18 +10,23 @@ require_once '../models/Student.php';
 require_once '../models/Device.php';
 
 $database = new Database();
-$db = $db->connect();
+$db = $database->connect();
 
-echo "[$(date)] Starting night audit...\n";
+echo "[" . date('Y-m-d H:i:s') . "] Starting night audit...\n";
 
 // 1. Overdue checkouts (24+ hours OUT)
 $overdueStmt = $db->prepare("
-  SELECT c.*, s.full_name, s.email, s.phone 
-  FROM checkins c 
-  JOIN students s ON c.student_id = s.student_id 
-  JOIN devices d ON c.device_serial = d.serial_number
-  WHERE c.status = 'OUT' 
-  AND c.checkout_time < DATE_SUB(NOW(), INTERVAL 24 HOUR)
+  SELECT c.*, s.full_name, s.email, s.phone
+  FROM checkins c
+  JOIN (
+      SELECT serial_number, MAX(id) AS latest_id
+      FROM checkins
+      GROUP BY serial_number
+  ) latest ON latest.latest_id = c.id
+  JOIN students s ON c.student_id = s.student_id
+  JOIN devices d ON c.serial_number = d.serial_number
+  WHERE c.status = 'OUT'
+  AND c.checkin_time < DATE_SUB(NOW(), INTERVAL 24 HOUR)
 ");
 
 $overdueStmt->execute();
@@ -30,7 +35,7 @@ $overdue = $overdueStmt->fetchAll(PDO::FETCH_ASSOC);
 foreach ($overdue as $record) {
   $subject = "🚨 Device Overdue - ELACS Library";
   $message = "Hi " . $record['full_name'] . ",\n\n" .
-             "Device " . $record['device_serial'] . " (checked out " . $record['checkout_time'] . ") " .
+             "Device " . $record['serial_number'] . " (checked out " . $record['checkin_time'] . ") " .
              "has been out for over 24 hours.\n\n" .
              "Please return it promptly.\n\n" .
              "-- ELACS Library System";
@@ -47,14 +52,21 @@ if (intval(date('H')) >= 20) {
   $insideDevices = $checkin->getDevicesStillInside();
   
   foreach ($insideDevices as $device) {
-    $studentStmt = $db->prepare("SELECT full_name, email FROM students WHERE student_id = (SELECT student_id FROM devices WHERE serial_number = ? LIMIT 1)");
-    $studentStmt->execute([$device['device_serial']]);
+    $studentStmt = $db->prepare("
+      SELECT s.full_name, s.email
+      FROM devices d
+      LEFT JOIN students s
+        ON (s.student_id = d.student_id OR CAST(s.id AS CHAR) = CAST(d.student_id AS CHAR))
+      WHERE d.serial_number = ?
+      LIMIT 1
+    ");
+    $studentStmt->execute([$device['serial_number']]);
     $student = $studentStmt->fetch(PDO::FETCH_ASSOC);
     
     if ($student && $student['email']) {
       $subject = "📢 Library Closing - Collect Your Device";
       $message = "Hi " . $student['full_name'] . ",\n\n" .
-                 "Library closes soon. Please check out your device: " . $device['device_serial'] . "\n\n" .
+                 "Library closes soon. Please check out your device: " . $device['serial_number'] . "\n\n" .
                  "Thank you!";
       
       mail($student['email'], $subject, $message);
@@ -63,6 +75,8 @@ if (intval(date('H')) >= 20) {
   }
 }
 
-echo "[$(date)] Night audit complete. Processed " . count($overdue) . " overdue + after-hours checks.\n";
+echo "[" . date('Y-m-d H:i:s') . "] Night audit complete. Processed " . count($overdue) . " overdue + after-hours checks.\n";
 ?>
+
+
 

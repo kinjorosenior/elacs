@@ -1,8 +1,20 @@
-# TODO: Fix Unassigned Check-in Error
+# TODO: Replace device_serial → serial_number
 
-## Steps:
-- [x] Diagnose issue (unassigned devices prompt for student ID, invalid input causes 400)
-- [x] Create TODO.md
-- [x] Plan and implement validation in CheckIn.jsx to prevent bad requests for unassigned devices
-- [x] Test check-in flow for unassigned devices
-- [x] Complete task
+## Progress Tracker
+
+### [x] 1. Create this TODO.md (current)
+### [x] 2. Edit backend/models/Checkin.php (all methods)
+### [x] 3. Edit frontend/src/pages/CheckIn.jsx (API payload)
+### [x] 4. Edit frontend/src/pages/CheckOut.jsx (payload)
+### [x] 5. Edit frontend/src/pages/Devices.jsx (payload)
+### [x] 6. Edit backend/cron/night_audit.php (queries/messages)
+### [x] 7. Edit backend/controllers/ActivityController.php (JOIN)
+### [x] 8. Edit backend/api/devices/byStudent.php (JOIN)
+### [x] 9. Edit backend/api/checkout/update.php ($data)
+### [x] 10. Edit backend/api/activity/read.php (JOIN)
+### [x] 11. Minor: backend/api/checkin/create.php (var name)
+### [x] 12. Test checkin button functionality
+### [ ] 13. Complete task
+
+**Instructions:** I'll update checkboxes as steps complete. Next: edit Checkin.php.
+

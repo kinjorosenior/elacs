@@ -15,12 +15,12 @@ public function getRecent(){
             s.full_name,
             d.device_type,
             d.model,
-            c.status,
+            CASE WHEN c.status = 'IN' THEN 'checkin' ELSE 'checkout' END AS status,
             c.checkin_time,
-            c.checkout_time
+            c.checkin_time AS checkout_time
         FROM checkins c
-        JOIN students s ON c.student_id = s.id
-        JOIN devices d ON c.device_serial = d.serial_number
+        LEFT JOIN students s ON c.student_id = s.student_id
+        JOIN devices d ON c.serial_number = d.serial_number
         ORDER BY c.checkin_time DESC
         LIMIT 10
     ");

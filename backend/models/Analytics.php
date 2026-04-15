@@ -31,9 +31,17 @@ class Analytics
     public function devicesInside()
     {
         $stmt = $this->conn->query("
-            SELECT COUNT(*) as total 
-            FROM checkins 
-            WHERE status = 'IN'
+            SELECT COUNT(*) as total
+            FROM (
+                SELECT c1.serial_number
+                FROM checkins c1
+                INNER JOIN (
+                    SELECT serial_number, MAX(id) AS latest_id
+                    FROM checkins
+                    GROUP BY serial_number
+                ) c2 ON c1.id = c2.latest_id
+                WHERE c1.status = 'IN'
+            ) t
         ");
         return $this->safeFetch($stmt);
     }
@@ -44,6 +52,7 @@ class Analytics
             SELECT COUNT(*) as total 
             FROM checkins 
             WHERE DATE(checkin_time) = CURDATE()
+              AND status = 'IN'
         ");
         return $this->safeFetch($stmt);
     }
@@ -54,6 +63,7 @@ class Analytics
             SELECT COUNT(*) as total 
             FROM checkins 
             WHERE YEARWEEK(checkin_time, 1) = YEARWEEK(CURDATE(), 1)
+              AND status = 'IN'
         ");
         return $this->safeFetch($stmt);
     }
@@ -65,6 +75,7 @@ class Analytics
             FROM checkins 
             WHERE MONTH(checkin_time) = MONTH(CURDATE())
             AND YEAR(checkin_time) = YEAR(CURDATE())
+            AND status = 'IN'
         ");
         return $this->safeFetch($stmt);
     }

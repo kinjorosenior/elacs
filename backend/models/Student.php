@@ -85,7 +85,7 @@ class Student
 
         return $stmt->execute([
             ':score' => $newScore,
-            ': student_id' => $id
+            ':student_id' => $id
         ]);
     }
 

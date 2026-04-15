@@ -16,8 +16,8 @@ $stmt = $conn->prepare("
     d.model,
     d.device_type
   FROM checkins c
-  JOIN students s ON c.student_id = s.student_id
-  JOIN devices d ON c.device_serial = d.serial_number
+  LEFT JOIN students s ON c.student_id = s.student_id
+  JOIN devices d ON c.serial_number = d.serial_number
   ORDER BY c.checkin_time DESC 
   LIMIT 10
 ");
@@ -31,4 +31,5 @@ foreach ($data as &$row) {
 }
 
 echo json_encode($data ?: []);
+
 

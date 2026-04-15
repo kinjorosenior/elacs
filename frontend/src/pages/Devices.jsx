@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import AdminLayout from "../layouts/AdminLayout";
 
@@ -53,7 +52,7 @@ export default function Devices() {
       const res = await fetch("http://localhost/elacs/backend/api/checkin/create.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ student_id: sid, device_serial: serial })
+        body: JSON.stringify({ student_id: sid, serial_number: serial })
       });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);

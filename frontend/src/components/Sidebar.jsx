@@ -27,7 +27,7 @@ function Sidebar({ collapsed }) {
   zIndex: 1000
 }}>
 
-  {!collapsed && <h2>ELACS</h2>}
+  {!collapsed && <h2>CHECKIN SYSTEM</h2>}
 
 <Link to="/" style={item}>
   {collapsed ? "🏠" : "🏠 Dashboard"}

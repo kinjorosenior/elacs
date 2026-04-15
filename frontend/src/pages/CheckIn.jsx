@@ -8,13 +8,23 @@ export default function CheckIn() {
   const [studentDevices, setStudentDevices] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [status, setStatus] = useState(null); // 'success' | 'error'
+  const [message, setMessage] = useState("");
+
+  function showMessage(type, msg) {
+    setStatus(type);
+    setMessage(msg);
+    setTimeout(() => setStatus(null), 5000);
+  }
 
   function searchData() {
     if (search.trim() === "") {
-      alert("Enter student name, ID or device serial");
+      showMessage('error', "Enter student name, ID or device serial");
       return;
     }
     setLoading(true);
+    setStatus(null);
 
     Promise.all([
       fetch(`http://localhost/elacs/backend/api/students/search.php?q=${search}`).then(res => res.json()),
@@ -29,7 +39,10 @@ export default function CheckIn() {
       ];
       setSearchResults(results);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => {
+      showMessage('error', "Search failed - check server");
+      setLoading(false);
+    });
   }
 
   function loadDevices(studentId) {
@@ -39,30 +52,34 @@ export default function CheckIn() {
       .then(data => setStudentDevices(Array.isArray(data) ? data : []));
   }
 
-  function checkinDevice(serial) {
+  async function checkinDevice(serial) {
     if (!selectedStudent) {
-      alert("Please select a student first");
+      showMessage('error', "Please select a student first");
       return;
     }
-    fetch("http://localhost/elacs/backend/api/checkin/create.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ student_id: selectedStudent, device_serial: serial })
-    })
-    .then(res => {
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    setSubmitLoading(true);
+    setStatus(null);
+
+    try {
+      const res = await fetch("http://localhost/elacs/backend/api/checkin/create.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ student_id: selectedStudent, serial_number: serial, admin_id: 1 })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok || data.error) {
+        throw new Error(data.error || data.message || `HTTP ${res.status}: ${res.statusText}`);
       }
-      return res.json();
-    })
-    .then(data => {
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      alert(data.message);
-      if (selectedStudent) loadDevices(selectedStudent);
-    })
-    .catch(err => alert("Check-in failed: " + err.message));
+      
+      showMessage('success', data.message || "Check-in successful!");
+      loadDevices(selectedStudent); // Refresh list
+    } catch (err) {
+      showMessage('error', err.message.includes('Duplicate') ? 'Device already checked in (MySQL conflict)' : err.message);
+    } finally {
+      setSubmitLoading(false);
+    }
   }
 
   return (
@@ -79,6 +96,12 @@ export default function CheckIn() {
             {loading ? "Searching..." : "Search"}
           </button>
         </div>
+
+        {status && (
+          <div className={`status-message ${status}`}>
+            {message}
+          </div>
+        )}
 
         {searchResults.length > 0 && (
           <>
@@ -126,10 +149,10 @@ export default function CheckIn() {
                     <td>
                       <button
                         className="checkin-btn"
-                        disabled={d.current_status === "IN"}
+                        disabled={d.current_status === "IN" || submitLoading}
                         onClick={() => checkinDevice(d.serial_number)}
                       >
-                        {d.current_status === "IN" ? "Already In" : "Check-In"}
+                        {submitLoading ? "Processing..." : (d.current_status === "IN" ? "Already In" : "Check-In")}
                       </button>
                     </td>
                   </tr>
@@ -139,7 +162,26 @@ export default function CheckIn() {
           </>
         )}
       </div>
+      <style jsx>{`
+        .status-message {
+          padding: 12px;
+          margin: 10px 0;
+          border-radius: 4px;
+          font-weight: bold;
+        }
+        .status-message.success {
+          background: #d4edda;
+          color: #155724;
+          border: 1px solid #c3e6cb;
+        }
+        .status-message.error {
+          background: #f8d7da;
+          color: #721c24;
+          border: 1px solid #f5c6cb;
+        }
+      `}</style>
     </AdminLayout>
   );
 }
+
 

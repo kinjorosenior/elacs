@@ -16,58 +16,122 @@ try {
     $conn = $db->connect();
 
     $data = json_decode(file_get_contents("php://input"), true) ?: [];
-    $student_id = $data['id'] ?? null;
-    $device_serial = $data['device_serial'] ?? null;
+    $student_lookup = trim((string)($data['student_id'] ?? $data['id'] ?? ''));
+    $device_serial_number = trim((string)($data['serial_number'] ?? ''));
+    $admin_id = (int)($data['admin_id'] ?? $data['librarian_id'] ?? 1);
 
-    if (!$student_id || !$device_serial) {
-        throw new Exception("student_id and device_serial required");
+    if (!$admin_id) {
+        throw new Exception("admin_id required");
     }
 
-    // Validate student exists
-    $studentStmt = $conn->prepare("SELECT student_id FROM students WHERE student_id = :student_id");
-    $studentStmt->bindParam(":student_id", $student_id);
-    $studentStmt->execute();
-    if (!$studentStmt->fetch()) {
-        throw new Exception("Student not found: " . $student_id);
+    if (!$device_serial_number) {
+        throw new Exception("serial_number required");
     }
 
-    // Validate device exists
-    $deviceStmt = $conn->prepare("SELECT serial_number FROM devices WHERE serial_number = :serial");
-    $deviceStmt->bindParam(":serial", $device_serial);
-    $deviceStmt->execute();
-    if (!$deviceStmt->fetch()) {
-        throw new Exception("Device not found: " . $device_serial);
-    }
+    $conn->beginTransaction();
 
-    // Prevent duplicate check-in
-    $checkStmt = $conn->prepare("
-        SELECT id FROM checkins 
-        WHERE device_serial = :serial AND status = 'IN'
-        ORDER BY checkin_time DESC LIMIT 1
+    // Resolve device first (source of truth for ownership)
+    $deviceStmt = $conn->prepare("
+        SELECT
+            d.id,
+            d.library_id,
+            d.student_id,
+            d.serial_number,
+            s.student_id AS mapped_student_id
+        FROM devices d
+        LEFT JOIN students s
+            ON (s.student_id = d.student_id OR CAST(s.id AS CHAR) = CAST(d.student_id AS CHAR))
+        WHERE d.serial_number = :serial
+        LIMIT 1
     ");
-    $checkStmt->bindParam(":serial", $device_serial);
+    $deviceStmt->bindParam(":serial", $device_serial_number);
+    $deviceStmt->execute();
+    $device = $deviceStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$device) {
+        throw new Exception("Device not found: " . $device_serial_number);
+    }
+
+    $resolved_student_id = $device['mapped_student_id'] ?? null;
+
+    // Fall back to device.student_id when it already stores a human-readable student_id
+    if (empty($resolved_student_id) && !empty($device['student_id']) && !is_numeric((string)$device['student_id'])) {
+        $resolved_student_id = (string)$device['student_id'];
+    }
+
+    // Validate incoming student identifier (if provided) using BOTH id and student_id
+    if ($student_lookup !== '') {
+        $studentStmt = $conn->prepare("SELECT id, student_id FROM students WHERE student_id = :lookup OR CAST(id AS CHAR) = :lookup LIMIT 1");
+        $studentStmt->bindParam(":lookup", $student_lookup);
+        $studentStmt->execute();
+        $student = $studentStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$student) {
+            throw new Exception("Student not found: " . $student_lookup);
+        }
+
+        if (!empty($resolved_student_id) && (string)$student['student_id'] !== (string)$resolved_student_id) {
+            throw new Exception("Selected student does not match device owner");
+        }
+
+        // Keep checkins.student_id aligned with students.student_id (VARCHAR FK)
+        if (empty($resolved_student_id)) {
+            $resolved_student_id = (string)$student['student_id'];
+        }
+    }
+
+    if (empty($resolved_student_id)) {
+        throw new Exception("Unable to resolve student for this device");
+    }
+
+    // Prevent duplicate check-in (latest event for serial cannot already be IN)
+    $checkStmt = $conn->prepare("
+        SELECT status
+        FROM checkins
+        WHERE serial_number = :serial
+        ORDER BY checkin_time DESC, id DESC
+        LIMIT 1
+    ");
+    $checkStmt->bindParam(":serial", $device_serial_number);
     $checkStmt->execute();
-    if ($checkStmt->fetch()) {
+    $latest = $checkStmt->fetch(PDO::FETCH_ASSOC);
+    if ($latest && $latest['status'] === 'IN') {
         throw new Exception("Device already checked in");
     }
 
     // Insert new check-in
     $insertStmt = $conn->prepare("
-        INSERT INTO checkins (student_id, device_serial, status, checkin_time)
-        VALUES (:student_id, :serial, 'IN', NOW())
+        INSERT INTO checkins (library_id, student_id, serial_number, admin_id, status, checkin_time)
+        VALUES (:library_id, :student_id, :serial_number, :admin_id, 'IN', NOW())
     ");
-    $insertStmt->bindParam(":student_id", $student_id);
-    $insertStmt->bindParam(":serial", $device_serial);
+    $insertStmt->bindParam(":library_id", $device['library_id']);
+    $insertStmt->bindParam(":student_id", $resolved_student_id);
+    $insertStmt->bindParam(":serial_number", $device_serial_number);
+    $insertStmt->bindParam(":admin_id", $admin_id);
     
     if ($insertStmt->execute()) {
-        echo json_encode(["message" => "Device checked in successfully"]);
+        // Keep devices table in sync for any views still using devices.status
+        $updateDevice = $conn->prepare("UPDATE devices SET status = 'inside' WHERE serial_number = :serial");
+        $updateDevice->bindParam(":serial", $device_serial_number);
+        $updateDevice->execute();
+
+        $conn->commit();
+        echo json_encode([
+            "message" => "Device checked in successfully",
+            "status" => "IN"
+        ]);
     } else {
         throw new Exception("Failed to insert check-in record");
     }
 
 } catch (Exception $e) {
+    if (isset($conn) && $conn->inTransaction()) {
+        $conn->rollBack();
+    }
     http_response_code(400);
     echo json_encode(["error" => $e->getMessage()]);
 }
 ?>
+
+
 

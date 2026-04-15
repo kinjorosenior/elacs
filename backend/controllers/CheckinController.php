@@ -22,10 +22,12 @@ class CheckinController
     // ==============================
     public function checkIn()
     {
-        $data = json_decode(file_get_contents("php://input"), true);
+        $data = json_decode(file_get_contents("php://input"), true) ?: [];
+        $serial = trim((string)($data['serial_number'] ?? ''));
+        $adminId = (int)($data['admin_id'] ?? $data['librarian_id'] ?? 1);
 
-        if (!isset($data['serial_number']) || !isset($data['librarian_id'])) {
-            echo json_encode(["error" => "Serial number and librarian ID required"]);
+        if ($serial === '') {
+            echo json_encode(["error" => "Serial number required"]);
             return;
         }
 
@@ -38,7 +40,7 @@ class CheckinController
             return;
         }
 
-        $deviceData = $this->device->findBySerial($data['serial_number']);
+        $deviceData = $this->device->findBySerial($serial);
 
         if (!$deviceData) {
             echo json_encode(["error" => "Device not found"]);
@@ -50,7 +52,10 @@ class CheckinController
             return;
         }
 
-        $studentData = $this->student->findById($deviceData['student_id']);
+        $studentData = $this->student->findByStudentId((string)$deviceData['student_id']);
+        if (!$studentData && is_numeric((string)$deviceData['student_id'])) {
+            $studentData = $this->student->findById((int)$deviceData['student_id']);
+        }
 
         if (!$studentData) {
             echo json_encode(["error" => "Student not found"]);
@@ -62,12 +67,17 @@ class CheckinController
             return;
         }
 
+        $activeCheckin = $this->checkin->getActiveCheckin($serial);
+        if ($activeCheckin) {
+            echo json_encode(["error" => "Device already checked in"]);
+            return;
+        }
+
         $this->checkin->create([
-            'device_id' => $deviceData['id'],
-            'student_id' => $deviceData['student_id'],
-            'library_id' => $deviceData['id'],
-            'librarian_id' => $data['id'],
-            'status' => 'inside'
+            'library_id' => $deviceData['library_id'] ?? 1,
+            'student_id' => $studentData['student_id'],
+            'serial_number' => $serial,
+            'admin_id' => $adminId
         ]);
 
         $this->device->updateStatus($deviceData['id'], 'inside');
@@ -80,33 +90,30 @@ class CheckinController
     // ==============================
     public function checkOut()
     {
-        $data = json_decode(file_get_contents("php://input"), true);
+        $data = json_decode(file_get_contents("php://input"), true) ?: [];
+        $serial = trim((string)($data['serial_number'] ?? ''));
+        $adminId = (int)($data['admin_id'] ?? $data['librarian_id'] ?? 1);
 
-        if (!isset($data['serial_number'])) {
+        if ($serial === '') {
             echo json_encode(["error" => "Serial number required"]);
             return;
         }
 
-        $deviceData = $this->device->findBySerial($data['serial_number']);
+        $deviceData = $this->device->findBySerial($serial);
 
         if (!$deviceData) {
             echo json_encode(["error" => "Device not found"]);
             return;
         }
 
-        if ($deviceData['status'] !== 'inside') {
-            echo json_encode(["error" => "Device is not currently inside"]);
-            return;
-        }
-
-        $activeCheckin = $this->checkin->getActiveCheckin($deviceData['id']);
+        $activeCheckin = $this->checkin->getActiveCheckin($serial);
 
         if (!$activeCheckin) {
             echo json_encode(["error" => "No active check-in record"]);
             return;
         }
 
-        $this->checkin->closeCheckin($activeCheckin['id']);
+        $this->checkin->closeCheckin($activeCheckin['id'], $adminId);
         $this->device->updateStatus($deviceData['id'], 'registered');
 
         // ⏱ Calculate duration
@@ -114,11 +121,14 @@ class CheckinController
         $minutesSpent = $duration['minutes_spent'];
 
         // 🚨 Penalize if stayed more than 10 hours
-        $userData = $this->user->findById($deviceData['student_id']);
+        $studentData = $this->student->findByStudentId((string)$activeCheckin['student_id']);
+        if (!$studentData && is_numeric((string)$activeCheckin['student_id'])) {
+            $studentData = $this->student->findById((int)$activeCheckin['student_id']);
+        }
 
-        if ($minutesSpent > 600) {
-            $newScore = $userData['trust_score'] - 10;
-            $this->user->updateTrustScore($userData['id'], $newScore);
+        if ($minutesSpent > 600 && $studentData) {
+            $newScore = max(0, ((int)$studentData['trust_score']) - 10);
+            $this->student->updateTrustScore($studentData['id'], $newScore);
         }
 
         echo json_encode([

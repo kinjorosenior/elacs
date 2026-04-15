@@ -25,7 +25,7 @@ export default function CheckOut() {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ device_serial: serial })
+      body: JSON.stringify({ serial_number: serial })
     })
       .then(res => res.json())
       .then(data => {
@@ -66,4 +66,3 @@ export default function CheckOut() {
     </AdminLayout>
   );
 }
-

@@ -39,11 +39,35 @@ class AnalyticsController
                 d.serial_number,
                 d.device_type,
                 c.checkin_time,
-                c.checkout_time,
-                TIMESTAMPDIFF(HOUR, c.checkin_time, COALESCE(c.checkout_time, NOW())) as duration_hours
+                (
+                    SELECT c2.checkin_time
+                    FROM checkins c2
+                    WHERE c2.serial_number = c.serial_number
+                      AND c2.status = 'OUT'
+                      AND c2.checkin_time >= c.checkin_time
+                    ORDER BY c2.checkin_time ASC, c2.id ASC
+                    LIMIT 1
+                ) as checkout_time,
+                TIMESTAMPDIFF(
+                    HOUR,
+                    c.checkin_time,
+                    COALESCE(
+                        (
+                            SELECT c3.checkin_time
+                            FROM checkins c3
+                            WHERE c3.serial_number = c.serial_number
+                              AND c3.status = 'OUT'
+                              AND c3.checkin_time >= c.checkin_time
+                            ORDER BY c3.checkin_time ASC, c3.id ASC
+                            LIMIT 1
+                        ),
+                        NOW()
+                    )
+                ) as duration_hours
             FROM checkins c
-            JOIN devices d ON d.serial_number COLLATE utf8mb4_unicode_ci = c.device_serial COLLATE utf8mb4_unicode_ci
-            JOIN students s ON s.student_id COLLATE utf8mb4_unicode_ci = c.student_id COLLATE utf8mb4_unicode_ci
+            JOIN devices d ON d.serial_number = c.serial_number
+            LEFT JOIN students s ON s.student_id = c.student_id
+            WHERE c.status = 'IN'
             ORDER BY c.checkin_time DESC
             LIMIT 100
         ";
@@ -55,4 +79,5 @@ class AnalyticsController
         echo json_encode($results);
     }
 }
+
 

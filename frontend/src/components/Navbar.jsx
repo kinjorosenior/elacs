@@ -27,7 +27,7 @@ function Navbar({ toggleSidebar = () => {} }) {
         ☰
       </button>
 
-      <h3>ELACS</h3>
+      <h3>ELECTRONIC GADGETS LIBRARY CHECKIN SYSTEM</h3>
 
       <div style={{display:"flex",gap:"20px"}}>
 
