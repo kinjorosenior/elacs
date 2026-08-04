@@ -72,6 +72,33 @@ class Student
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+// ==============================
+    // UPDATE STUDENT (FIXED - FOR FRONTEND EDIT)
+    // ==============================
+    public function update($data)
+    {
+        $query = "UPDATE {$this->table}
+                  SET student_id = :student_id,
+                      full_name = :full_name,
+                      department = :department,
+                      year_of_study = :year_of_study,
+                      phone = :phone,
+                      email = :email
+                  WHERE id = :id";
+
+        $stmt = $this->conn->prepare($query);
+
+        return $stmt->execute([
+            ':id' => $data['id'],
+            ':student_id' => $data['student_id'],
+            ':full_name' => $data['full_name'],
+            ':department' => $data['department'] ?? null,
+            ':year_of_study' => $data['year_of_study'] ?? null,
+            ':phone' => $data['phone'] ?? null,
+            ':email' => $data['email'] ?? null
+        ]);
+    }
+
     // ==============================
     // UPDATE TRUST SCORE
     // ==============================

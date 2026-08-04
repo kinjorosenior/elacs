@@ -17,6 +17,8 @@ if (!$student_id) {
 
 try {
 
+    // dev.student_id may store either the numeric students.id OR the
+    // human-readable student_id code (e.g. KAB001). Resolve both.
     $stmt = $conn->prepare("
         SELECT 
             d.serial_number,
@@ -32,17 +34,25 @@ try {
                 'OUT'
             ) as current_status
         FROM devices d
-        WHERE d.student_id = :student_id
+        WHERE d.student_id = :v1
            OR d.student_id = (
                 SELECT CAST(id AS CHAR)
                 FROM students
-                WHERE student_id = :student_lookup
+                WHERE student_id = :v2
+                LIMIT 1
+           )
+           OR d.student_id = (
+                SELECT id
+                FROM students
+                WHERE student_id = :v3
                 LIMIT 1
            )
     ");
 
-    $stmt->bindParam(":student_id", $student_id);
-    $stmt->bindParam(":student_lookup", $student_id);
+    $student_id = trim($student_id);
+    $stmt->bindParam(":v1", $student_id);
+    $stmt->bindParam(":v2", $student_id);
+    $stmt->bindParam(":v3", $student_id);
     $stmt->execute();
 
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);

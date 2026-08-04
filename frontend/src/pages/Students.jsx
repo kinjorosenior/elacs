@@ -40,7 +40,7 @@ export default function Students(){
     const isEdit = !!student.id;
     const url = "http://localhost/elacs/backend/index.php?request=" + (isEdit ? "update_student" : "create_student");
     
-    fetch(url,{
+fetch(url,{
       method:"POST",
       headers:{
         "Content-Type":"application/json"
@@ -48,7 +48,15 @@ export default function Students(){
       body:JSON.stringify(isEdit ? {id: student.id, ...student} : student)
     })
       .then(res=>res.json())
-      .then(()=>{
+      .then((data)=>{
+        if (data && data.success === false) {
+          alert(data.message || "Failed to update student");
+          return;
+        }
+        if (data && data.error) {
+          alert(data.error || "Something went wrong");
+          return;
+        }
         alert(isEdit ? "Student updated" : "Student registered successfully")
         setShowModal(false);
         setEditModal(false);
@@ -60,7 +68,7 @@ export default function Students(){
       })
   }
 
-  const toggleStudentStatus = (id, currentStatus) => {
+const toggleStudentStatus = (id, currentStatus) => {
     const action = currentStatus === 'active' ? 'Deactivate' : 'Activate';
     if (!confirm(`${action} this student?`)) return;
     fetch("http://localhost/elacs/backend/index.php?request=" + (currentStatus === 'active' ? 'deactivate_student' : 'activate_student'),{
@@ -70,7 +78,16 @@ export default function Students(){
       },
       body:JSON.stringify({id})
     })
-      .then(()=>{
+      .then(res=>res.json())
+      .then((data)=>{
+        if (data && data.error) {
+          alert(data.error || `${action} failed`);
+          return;
+        }
+        if (data && data.success === false) {
+          alert(data.message || `${action} failed`);
+          return;
+        }
         alert(`Student ${action.toLowerCase()}d`);
         loadStudents();
       });

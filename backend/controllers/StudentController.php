@@ -27,6 +27,30 @@ class StudentController {
         ]);
     }
 
+// UPDATE STUDENT
+    public function update() {
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        $result = $this->model->update($data);
+
+        echo json_encode([
+            "success" => $result,
+            "message" => $result ? "Student updated" : "Failed to update student"
+        ]);
+    }
+
+// ACTIVATE
+    public function activate() {
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        $result = $this->model->updateStatus($data['id'], 'active');
+
+        echo json_encode([
+            "success" => $result,
+            "message" => $result ? "Student activated" : "Failed to activate student"
+        ]);
+    }
+
     // DEACTIVATE
     public function deactivate() {
         $data = json_decode(file_get_contents("php://input"), true);

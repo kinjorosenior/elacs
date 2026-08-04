@@ -74,9 +74,19 @@ switch ($request) {
         (new StudentController($db))->getAll();
         break;
 
-    case "create_student":
+case "create_student":
         require_once __DIR__ . '/../controllers/StudentController.php';
         (new StudentController($db))->create();
+        break;
+
+case "update_student":
+        require_once __DIR__ . '/../controllers/StudentController.php';
+        (new StudentController($db))->update();
+        break;
+
+    case "activate_student":
+        require_once __DIR__ . '/../controllers/StudentController.php';
+        (new StudentController($db))->activate();
         break;
 
     case "deactivate_student":

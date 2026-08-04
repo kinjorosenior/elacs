@@ -1,9 +1,9 @@
-ant <?php
+<?php
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST");
 header("Content-Type: application/json");
 
-require_once "../config/database.php";
+require_once "../../config/database.php";
 $db = new Database();
 $conn = $db->connect();
 

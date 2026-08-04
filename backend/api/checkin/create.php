@@ -15,13 +15,31 @@ try {
     $db = new Database();
     $conn = $db->connect();
 
-    $data = json_decode(file_get_contents("php://input"), true) ?: [];
+$data = json_decode(file_get_contents("php://input"), true) ?: [];
     $student_lookup = trim((string)($data['student_id'] ?? $data['id'] ?? ''));
     $device_serial_number = trim((string)($data['serial_number'] ?? ''));
     $admin_id = (int)($data['admin_id'] ?? $data['librarian_id'] ?? 1);
 
+    // Resolve a valid admin_id (the provided one may not exist)
     if (!$admin_id) {
         throw new Exception("admin_id required");
+    }
+
+    $adminCheck = $conn->prepare("SELECT id FROM admins WHERE id = :id LIMIT 1");
+    $adminCheck->bindParam(":id", $admin_id);
+    $adminCheck->execute();
+    if (!$adminCheck->fetch()) {
+        // Fall back to any active admin
+        $anyAdmin = $conn->prepare("SELECT id FROM admins WHERE status = 'active' ORDER BY id LIMIT 1");
+        $anyAdmin->execute();
+        $fallback = $anyAdmin->fetch(PDO::FETCH_ASSOC);
+        if ($fallback) {
+            $admin_id = (int)$fallback['id'];
+        } else {
+            // No admins exist at all - insert a system admin
+            $conn->prepare("INSERT IGNORE INTO admins (id, library_id, full_name, email, password, role, status) VALUES (1, 1, 'System Admin', 'admin@kabarak.ac.ke', 'admin123', 'admin', 'active')")->execute();
+            $admin_id = 1;
+        }
     }
 
     if (!$device_serial_number) {
@@ -80,8 +98,17 @@ try {
         }
     }
 
-    if (empty($resolved_student_id)) {
+if (empty($resolved_student_id)) {
         throw new Exception("Unable to resolve student for this device");
+    }
+
+    // Resolve a valid library_id (device.library_id may be null)
+    $library_id = $device['library_id'] ?? null;
+    if (empty($library_id)) {
+        $libCheck = $conn->prepare("SELECT id FROM libraries ORDER BY id LIMIT 1");
+        $libCheck->execute();
+        $lib = $libCheck->fetch(PDO::FETCH_ASSOC);
+        $library_id = $lib ? (int)$lib['id'] : 1;
     }
 
     // Prevent duplicate check-in (latest event for serial cannot already be IN)
@@ -104,7 +131,7 @@ try {
         INSERT INTO checkins (library_id, student_id, serial_number, admin_id, status, checkin_time)
         VALUES (:library_id, :student_id, :serial_number, :admin_id, 'IN', NOW())
     ");
-    $insertStmt->bindParam(":library_id", $device['library_id']);
+$insertStmt->bindParam(":library_id", $library_id);
     $insertStmt->bindParam(":student_id", $resolved_student_id);
     $insertStmt->bindParam(":serial_number", $device_serial_number);
     $insertStmt->bindParam(":admin_id", $admin_id);

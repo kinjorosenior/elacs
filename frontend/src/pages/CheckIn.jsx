@@ -52,8 +52,9 @@ export default function CheckIn() {
       .then(data => setStudentDevices(Array.isArray(data) ? data : []));
   }
 
-  async function checkinDevice(serial) {
-    if (!selectedStudent) {
+async function checkinDevice(serial, studentId = null) {
+    const sid = studentId || selectedStudent;
+    if (!sid) {
       showMessage('error', "Please select a student first");
       return;
     }
@@ -64,7 +65,7 @@ export default function CheckIn() {
       const res = await fetch("http://localhost/elacs/backend/api/checkin/create.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ student_id: selectedStudent, serial_number: serial, admin_id: 1 })
+body: JSON.stringify({ student_id: sid, serial_number: serial, admin_id: 1 })
       });
       
       const data = await res.json();
@@ -74,7 +75,7 @@ export default function CheckIn() {
       }
       
       showMessage('success', data.message || "Check-in successful!");
-      loadDevices(selectedStudent); // Refresh list
+      if (selectedStudent) loadDevices(selectedStudent); // Refresh list
     } catch (err) {
       showMessage('error', err.message.includes('Duplicate') ? 'Device already checked in (MySQL conflict)' : err.message);
     } finally {
@@ -113,10 +114,10 @@ export default function CheckIn() {
                     {item.type === 'student' ? `${item.full_name} (${item.student_id}) 👤` : 
                     `${item.model} (${item.serial_number}) 💻 - ${item.student_name}`}
                   </span>
-                  {item.type === 'student' ? (
+{item.type === 'student' ? (
                     <button onClick={() => loadDevices(item.student_id)}>Load Devices</button>
                   ) : (
-                    <button onClick={() => loadDevices(item.student_id || prompt('Enter student ID for this device'))}>
+                    <button onClick={() => checkinDevice(item.serial_number, item.student_id)}>
                       Check-In
                     </button>
                   )}
